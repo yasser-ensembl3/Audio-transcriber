@@ -7,7 +7,12 @@
    brew install python
    ```
 
-2. **Claude Code CLI**
+2. **Node.js** (for Claude Code)
+   ```bash
+   brew install node
+   ```
+
+3. **Claude Code CLI**
    ```bash
    npm install -g @anthropic-ai/claude-code
    claude  # Run once to authenticate
@@ -15,10 +20,10 @@
 
 ## Setup
 
-### 1. Clone/Copy the project
+### 1. Clone the repo
 ```bash
-cp -r transcript-pipeline /path/to/destination
-cd /path/to/destination/transcript-pipeline
+git clone git@github.com:yasser-ensembl3/Audio-transcriber.git
+cd Audio-transcriber
 ```
 
 ### 2. Create virtual environment
@@ -51,9 +56,6 @@ GDRIVE_FOLDER_ID=xxxxxxxxxxxxxxxxxxxxxx
 
 # Google Drive Credentials Path
 GDRIVE_CREDENTIALS_PATH=credentials.json
-
-# Webhook Secret (optional, for n8n integration)
-WEBHOOK_SECRET=your-secret-here
 ```
 
 ### 4. Setup Google Drive OAuth
@@ -87,6 +89,20 @@ This will open a browser for Google OAuth. Authenticate once.
 - `Text summary` (Files) - Will be filled by pipeline
 - `Audio summary` (Files) - Will be filled by pipeline
 
+### 7. Update Claude Code path in summarizer.py
+
+The summarizer uses the **full path** to Claude Code CLI (required for LaunchAgent to work).
+
+Find your Claude path:
+```bash
+which claude
+```
+
+Then update `summarizer.py` — replace the existing path with yours:
+```python
+["/your/path/to/claude", "-p", prompt, "--dangerously-skip-permissions"]
+```
+
 ## Running
 
 ### Start the watcher (foreground)
@@ -111,13 +127,20 @@ tail -f watcher.log
 pkill -f watcher.py
 ```
 
-## Auto-start on boot (macOS)
+## Auto-start on boot (macOS LaunchAgent)
 
-Create a LaunchAgent:
+The watcher can be configured to start automatically when the Mac boots and restart if it crashes.
+
+### 1. Create the LaunchAgent
+
+Replace `PROJECT_DIR` with your actual project path (e.g. `/Users/yourname/Audio-transcriber`):
 
 ```bash
+PROJECT_DIR="/path/to/Audio-transcriber"
+
 mkdir -p ~/Library/LaunchAgents
-cat > ~/Library/LaunchAgents/com.transcript.pipeline.plist << 'EOF'
+
+cat > ~/Library/LaunchAgents/com.transcript.pipeline.plist << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -126,38 +149,51 @@ cat > ~/Library/LaunchAgents/com.transcript.pipeline.plist << 'EOF'
     <string>com.transcript.pipeline</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/path/to/transcript-pipeline/venv/bin/python</string>
+        <string>${PROJECT_DIR}/venv/bin/python</string>
         <string>-u</string>
-        <string>/path/to/transcript-pipeline/watcher.py</string>
+        <string>${PROJECT_DIR}/watcher.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/transcript-pipeline</string>
+    <string>${PROJECT_DIR}</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/path/to/transcript-pipeline/watcher.log</string>
+    <string>${PROJECT_DIR}/watcher.log</string>
     <key>StandardErrorPath</key>
-    <string>/path/to/transcript-pipeline/watcher.log</string>
+    <string>${PROJECT_DIR}/watcher.log</string>
 </dict>
 </plist>
 EOF
 ```
 
-**Important:** Replace `/path/to/transcript-pipeline` with the actual path.
-
-Load the agent:
+### 2. Load (activate)
 ```bash
 launchctl load ~/Library/LaunchAgents/com.transcript.pipeline.plist
 ```
 
-Unload:
+### 3. Verify it's running
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.transcript.pipeline.plist
+ps aux | grep watcher.py
+tail -f /path/to/Audio-transcriber/watcher.log
 ```
 
+### 4. Manage
+
+| Action | Command |
+|--------|---------|
+| Stop | `launchctl unload ~/Library/LaunchAgents/com.transcript.pipeline.plist` |
+| Restart | Unload then load again |
+| Check logs | `tail -f /path/to/Audio-transcriber/watcher.log` |
+| Check status | `ps aux \| grep watcher` |
+
 ## Troubleshooting
+
+### "No such file or directory: 'claude'"
+- The LaunchAgent does not inherit your shell PATH
+- You must use the **full path** to Claude in `summarizer.py`
+- Find it with `which claude` and update both occurrences in `summarizer.py`
 
 ### "Claude Code error"
 - Make sure Claude Code is installed and authenticated: `claude --version`
@@ -173,3 +209,19 @@ launchctl unload ~/Library/LaunchAgents/com.transcript.pipeline.plist
 ### "No entries found"
 - Ensure the database has the correct column names
 - Check that entries have URLs in `Link` or `Audio Link` fields
+
+## Pipeline Flow
+
+```
+Notion DB (new entry detected)
+    ↓
+YouTube transcript / Article extraction
+    ↓
+Claude Code summarization
+    ↓
+Edge TTS audio generation (free)
+    ↓
+Google Drive upload (text + audio)
+    ↓
+Notion updated (Text summary + Audio summary)
+```

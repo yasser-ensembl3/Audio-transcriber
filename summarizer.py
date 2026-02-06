@@ -89,7 +89,7 @@ Instructions:
 Summary:"""
 
     result = subprocess.run(
-        ["claude", "-p", prompt, "--dangerously-skip-permissions"],
+        ["/Users/mac/.local/bin/claude", "-p", prompt, "--dangerously-skip-permissions"],
         capture_output=True,
         text=True,
         timeout=300
@@ -126,7 +126,7 @@ Instructions:
 Merged Summary:"""
 
     result = subprocess.run(
-        ["claude", "-p", prompt, "--dangerously-skip-permissions"],
+        ["/Users/mac/.local/bin/claude", "-p", prompt, "--dangerously-skip-permissions"],
         capture_output=True,
         text=True,
         timeout=300
