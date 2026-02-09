@@ -10,7 +10,7 @@ from youtube_transcript import save_transcript as save_youtube_transcript
 from article_extractor import save_article
 from summarizer import summarize_file
 from drive_uploader import upload_to_drive
-from notion_updater import update_text_summary, update_audio_summary
+from notion_updater import update_text_summary, update_audio_summary, update_page_title
 from audio_generator import generate_audio_from_summary
 from notion_reader import detect_type_from_url
 
@@ -54,6 +54,9 @@ def process_single(page_id, url):
         audio_filename = os.path.basename(audio_path)
         update_text_summary(page_id, drive_link, filename)
         update_audio_summary(page_id, audio_drive_link, audio_filename)
+
+        # Step 6: Rename the Link column to the content title
+        update_page_title(page_id, title)
 
         print(f"\n✓ SUCCESS: {title}")
         return True

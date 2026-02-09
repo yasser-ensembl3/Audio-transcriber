@@ -85,8 +85,39 @@ def update_audio_summary(page_id, file_url, filename):
         return False
 
 
+def update_page_title(page_id, title):
+    """Update the 'Link' title field in Notion with the content title"""
+    url = f"https://api.notion.com/v1/pages/{page_id}"
+
+    data = {
+        "properties": {
+            "Link": {
+                "title": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": title
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    response = requests.patch(url, headers=headers, json=data)
+
+    if response.status_code == 200:
+        print(f"Notion title updated: {title}")
+        return True
+    else:
+        print(f"Error updating Notion title: {response.status_code}")
+        print(response.text)
+        return False
+
+
 if __name__ == "__main__":
     # Test with a sample (won't actually run without valid page_id)
     print("Notion updater ready.")
     print("Usage: update_text_summary(page_id, file_url, filename)")
     print("Usage: update_audio_summary(page_id, file_url, filename)")
+    print("Usage: update_page_title(page_id, title)")
